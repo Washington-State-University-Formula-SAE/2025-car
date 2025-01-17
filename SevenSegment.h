@@ -10,8 +10,9 @@ class SevenSegment {
 public:
   Adafruit_7segment matrix;
   int reg;
+  TwoWire* wire;
   
-  SevenSegment(int reg) : matrix(), reg(reg) {}
+  SevenSegment(int reg, TwoWire* wire) : matrix(), reg(reg), wire(wire) {}
   void initialize();
   void show(int x, int base = DEC);
   void show(double x, int prec = 2);

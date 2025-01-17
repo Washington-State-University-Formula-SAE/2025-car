@@ -2,14 +2,14 @@
 #include "SevenSegment.h"
 #include "Selector.h"
 
-const int SELECTOR_PINS[] = {1, 2, 3, 4, 5, 6, 7, 8};
-const int CHECK_ENGINE = 13;
-const int SHIFT_GREEN = 14;
-const int SHIFT_YELLOW = 15;
-const int SHIFT_RED = 16;
+const int SELECTOR_PINS[] = {35, 36, 37, 38, 39, 40};
+const int CHECK_ENGINE = 27;
+const int SHIFT_GREEN[] = {4, 5, 6, 7, 8, 9};
+const int SHIFT_YELLOW[] = {2, 3, 10, 11};
+const int SHIFT_RED[] = {0, 1, 12, 26};
 
-SevenSegment display1(0x70);
-// SevenSegment display2;
+SevenSegment display1(0x70, &Wire);
+// SevenSegment display2(0x70, &Wire1);
 Selector selector(SELECTOR_PINS);
 MegaSquirt3 ecu;
 
@@ -27,10 +27,13 @@ void handler(const CAN_message_t &msg) {
     // show displays
     switch (selector.get()) {
       case OFF:
-        display1.show("    .");
+        display1.show("....");
         break;
       case RPM:
         display1.show(data.rpm);
+        break;
+      case COOLANT:
+        display1.show(data.clt);
         break;
       case BATTERY:
         display1.show(data.batt);
@@ -41,27 +44,18 @@ void handler(const CAN_message_t &msg) {
       case GEAR:
         display1.show(data.gear);
         break;
-      case MAP:
-        display1.show(data.map);
-        break;
-      case BAROMETER:
-        display1.show(data.baro);
-        break;
-      case COOLANT:
-        display1.show(data.clt);
-        break;
       default:
-        display1.show("8888");
+        display1.show("    ");
         break;
     }
   }
 }
 
 void setup() {
+  for (int i: SHIFT_GREEN) pinMode(i, OUTPUT);
+  for (int i: SHIFT_YELLOW) pinMode(i, OUTPUT);
+  for (int i: SHIFT_RED) pinMode(i, OUTPUT);
   pinMode(CHECK_ENGINE, OUTPUT);
-  pinMode(SHIFT_GREEN, OUTPUT);
-  pinMode(SHIFT_YELLOW, OUTPUT);
-  pinMode(SHIFT_RED, OUTPUT);
 
   selector.initialize();
   display1.initialize();
@@ -69,7 +63,5 @@ void setup() {
 }
 
 void loop() {
-  digitalWrite(CHECK_ENGINE, HIGH);
-  // display1.show((int)selector.get());
   ecu.eventloop();
 }

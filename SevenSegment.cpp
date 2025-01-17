@@ -1,7 +1,7 @@
 #include "SevenSegment.h"
 
 void SevenSegment::initialize() {
-  matrix.begin(0x70);
+  matrix.begin(reg, wire);
   matrix.print("----");
   matrix.writeDisplay();
 }
