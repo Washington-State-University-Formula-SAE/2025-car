@@ -10,14 +10,15 @@
 
 
 class MegaSquirt3 {
-  FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
   MegaCAN megaCAN;
 
 public:
+  MegaCAN_broadcast_message_t data;
+
   MegaSquirt3() : megaCAN(CAN_BASE_ID) {}
-  void initialize(_MB_ptr callback);
+  void initialize();
   void eventloop();
-  bool decode(const CAN_message_t &msg, MegaCAN_broadcast_message_t& data);
+  bool decode(const CAN_message_t &msg);
 };
 
 #endif
