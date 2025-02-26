@@ -6,10 +6,10 @@ void Selector::initialize() {
   }
 }
 
-DASHBOARD_STATE Selector::get() {
+int Selector::get() {
     for (int i=0;i<6;i++) {
       if (digitalRead(pins[i]) == HIGH) {
-        return (DASHBOARD_STATE)i;
+        return (int)i;
       }
     }
     return OFF;

@@ -6,6 +6,8 @@
 #include "SevenSegment.h"
 #include "Selector.h"
 
+bool is_dashboard = true;
+
 const int WRITE_FREQ = 5000; // ms
 
 const int SELECTOR_PINS[] = {35, 36, 37, 38, 39, 40};
@@ -28,29 +30,40 @@ uint32_t lastwrite = 0;
 
 void handler(const CAN_message_t &msg) {
   
-  accel.readSensor();
-  tosend.ax = accel.getAccelX_mss();
-  tosend.ay = accel.getAccelY_mss();
-  tosend.az = accel.getAccelZ_mss();
+  // log directly wired sensors:
+  if (!is_dashboard) {
+    // log accelerometer
+    accel.readSensor();
+    tosend.ax = accel.getAccelX_mss();
+    tosend.ay = accel.getAccelY_mss();
+    tosend.az = accel.getAccelZ_mss();
+    tosend.accel_millis = millis();
 
-  gyro.readSensor();
-  tosend.imu_x = gyro.getGyroX_rads();
-  tosend.imu_y = gyro.getGyroY_rads();
-  tosend.imu_z = gyro.getGyroZ_rads();
+    // log gyro
+    gyro.readSensor();
+    tosend.imu_x = gyro.getGyroX_rads();
+    tosend.imu_y = gyro.getGyroY_rads();
+    tosend.imu_z = gyro.getGyroZ_rads();
+    tosend.imu_millis = millis();
 
-  myGNSS.checkUblox();
-  tosend.hour = myGNSS.getHour();
-  tosend.minute = myGNSS.getMinute();
-  tosend.second = myGNSS.getSecond();
-	tosend.lat = myGNSS.getLatitude();
-	tosend.lon = myGNSS.getLongitude();
-	tosend.elev = myGNSS.getAltitude();
-	tosend.ground_speed = myGNSS.getGroundSpeed();	
-// 	int SIV = myGNSS.getSIV();
+    // log GPS
+    myGNSS.checkUblox();
+    tosend.hour = myGNSS.getHour();
+    tosend.minute = myGNSS.getMinute();
+    tosend.second = myGNSS.getSecond();
+    tosend.lat = myGNSS.getLatitude();
+    tosend.lon = myGNSS.getLongitude();
+    tosend.elev = myGNSS.getAltitude();
+    tosend.ground_speed = myGNSS.getGroundSpeed();	
+    tosend.gps_millis = millis();
+  }
 
   if (ecu.decode(msg)) {
-    // bool engine_bad = true;
-    // digitalWrite(CHECK_ENGINE, engine_bad ? HIGH : LOW);
+    // read ecu data
+    // =============
+    if (is_dashboard) {
+      set_rpm(ecu.data.rpm);
+    }
     tosend.rpm = ecu.data.rpm;
     tosend.time = ecu.data.seconds;
     tosend.afr = ecu.data.AFR1;
@@ -70,70 +83,79 @@ void handler(const CAN_message_t &msg) {
     tosend.egt = ecu.data.egt1;
     tosend.maf = ecu.data.MAF;
     tosend.in_temp = ecu.data.airtemp;
+    tosend.ecu_millis = millis();
   } else if (msg.id == 935444) {
+    // This is for all of the AnalogX stuff (one `if` statment per ID):
+    // =====================================================
+    tosend.analogx1_millis = millis();
     double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
     double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
     double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
     double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
-    Serial.print(a);Serial.print("\t");
-    Serial.print(b);Serial.print("\t");
-    Serial.print(c);Serial.print("\t");
-    Serial.print(d);Serial.print("\t batt: ");
-    Serial.println(ecu.data.batt);
-
-    double maxled = a * 14;
-
-    for (int i=0;i<14;i++) {
-      int pin = ALL_LEDS[i];
-      if (i+1 <= maxled + 0.2) digitalWrite(pin, HIGH);
-      else digitalWrite(pin, LOW);
-    }
   }
-  if (millis() > lastwrite + WRITE_FREQ) {
+
+  // write to SD card if time in time
+  if (!is_dashboard && millis() > lastwrite + WRITE_FREQ) {
     tosend.millis = millis();
     file.write((byte*) &tosend, sizeof(tosend));
     lastwrite = millis();
+  }
+  if (is_dashboard) {
+    switch (selector.get()) {
+      case 0:
+        break;
+      case 1:
+        break;
+      case 2:
+        break;
+      case 3:
+        break;
+      case 4:
+        break;
+      case 5:
+        break;
+      default:
+        break;
+    }
   }
 }
 
 void setup() {
   Serial.begin(9600);
-  if (!SD.begin(BUILTIN_SDCARD)) {
-    Serial.println(F("SD CARD FAILED, OR NOT PRESENT!"));
-    while(1);
+
+  if (is_dashboard) {
+    for (int i = 0; i < 14; i++) {
+      pinMode(ALL_LEDS[i], OUTPUT);
+    }
+    pinMode(CHECK_ENGINE, OUTPUT);
+
+    Serial.begin(9600);
+
+    selector.initialize();
+    display1.initialize();
+  } else {
+    if (!SD.begin(BUILTIN_SDCARD)) {
+      Serial.println(F("SD CARD FAILED, OR NOT PRESENT!"));
+      while(1);
+    }
+
+    accel.begin();
+    gyro.begin();
+
+    pinMode(24, INPUT_PULLUP);
+    pinMode(25, INPUT_PULLUP);
+
+    Wire2.begin();
+    if (myGNSS.begin(Wire2) == false) { //Connect to the u-blox module using Wire port {
+      Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
+      while (1);
+    }
+
+    myGNSS.checkUblox();
+    String filename = String(myGNSS.getYear()) + "-" + String(myGNSS.getMonth()) + "-" + String(myGNSS.getDay()) +\
+                    "-" + String(myGNSS.getHour()) + ":" + String(myGNSS.getMinute()) + ":" + String(myGNSS.getSecond() + ".bin");
+    file = SD.open(filename.c_str(), FILE_WRITE);
   }
-
-  accel.begin();
-  gyro.begin();
-
-  pinMode(24, INPUT_PULLUP);
-	pinMode(25, INPUT_PULLUP);
-
-  Wire2.begin();
-  if (myGNSS.begin(Wire2) == false) { //Connect to the u-blox module using Wire port {
-		Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
-		while (1);
-	}
-
-  myGNSS.checkUblox();
-  String filename = String(myGNSS.getYear()) + "-" + String(myGNSS.getMonth()) + "-" + String(myGNSS.getDay()) +\
-                  "-" + String(myGNSS.getHour()) + ":" + String(myGNSS.getMinute()) + ":" + String(myGNSS.getSecond() + ".bin");
-  file = SD.open(filename.c_str(), FILE_WRITE);
-
-  // myGNSS.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
-	// myGNSS.setNavigationFrequency(10); //Produce two solutions per second
-	// myGNSS.setAutoPVT(true); //Tell the GNSS to "send" each solution
-
-  for (int i = 0; i < 14; i++) {
-    pinMode(ALL_LEDS[i], OUTPUT);
-  }
-  pinMode(CHECK_ENGINE, OUTPUT);
-
-  Serial.begin(9600);
-
-  selector.initialize();
-  display1.initialize();
-  // this->callback = callback;
 
   Can.begin();
   Can.setBaudRate(500000); //set to 500000 for normal Megasquirt usage - need to change Megasquirt firmware to change MS CAN baud rate
@@ -145,15 +167,7 @@ void setup() {
 }
 CAN_message_t msg;
 
-void loop() {
-  // Serial.println("loop...");
-
-  // display1.show(selector.get());
-  // Serial.println(selector.get());
-  Can.events();
-}
-
-
+void loop() {Can.events();}
 void set_rpm(int i) {
   if (i <= 6500) {
     digitalWrite(ALL_LEDS[0], HIGH);

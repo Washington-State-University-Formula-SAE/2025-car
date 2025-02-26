@@ -12,7 +12,12 @@
 
 
 typedef struct row {
-  uint32_t millis;
+  uint32_t write_millis;
+  uint32_t ecu_millis;
+  uint32_t gps_millis;
+  uint32_t imu_millis;
+  uint32_t accel_millis;
+  uint32_t analogx1_millis;
   int rpm;
   int time;
   int afr;
