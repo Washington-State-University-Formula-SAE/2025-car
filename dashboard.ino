@@ -6,12 +6,11 @@
 #include "SevenSegment.h"
 #include "Selector.h"
 
+const int WRITE_FREQ = 5000; // ms
+
 const int SELECTOR_PINS[] = {35, 36, 37, 38, 39, 40};
 const int CHECK_ENGINE = 27;
-const int SHIFT_GREEN[] = {4, 5, 6, 7, 8, 9};
-const int SHIFT_YELLOW[] = {2, 3, 10, 11};
-const int SHIFT_RED[] = {0, 1, 12, 26};
-const int ALL_LEDS[] = {7,8,9,10,11,12,26,    1,0,2,3,4,5,6};
+const int ALL_LEDS[14] = {4, 9, 5, 8, 6, 7, 3, 10, 2, 11, 1, 12, 0, 26};
 
 Bmi088Accel accel(Wire,0x18);
 Bmi088Gyro gyro(Wire,0x68);
@@ -20,66 +19,57 @@ SevenSegment display1(0x70, &Wire);
 // SevenSegment display2(0x70, &Wire1);
 Selector selector(SELECTOR_PINS);
 MegaSquirt3 ecu;
-FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> Can;
 
 File file;
+ROW tosend;
+uint32_t lastwrite = 0;
+
 
 void handler(const CAN_message_t &msg) {
   
-//   accel.readSensor();
-//   gyro.readSensor();
+  accel.readSensor();
+  tosend.ax = accel.getAccelX_mss();
+  tosend.ay = accel.getAccelY_mss();
+  tosend.az = accel.getAccelZ_mss();
 
-// myGNSS.checkUblox(); // Check for the arrival of new data and process it.
-// 	int latitude = myGNSS.getLatitude();
-// 	int longitude = myGNSS.getLongitude();
-// 	int altitude = myGNSS.getAltitude();
-// 	int groundSpeed = myGNSS.getGroundSpeed();
-	
+  gyro.readSensor();
+  tosend.imu_x = gyro.getGyroX_rads();
+  tosend.imu_y = gyro.getGyroY_rads();
+  tosend.imu_z = gyro.getGyroZ_rads();
+
+  myGNSS.checkUblox();
+  tosend.hour = myGNSS.getHour();
+  tosend.minute = myGNSS.getMinute();
+  tosend.second = myGNSS.getSecond();
+	tosend.lat = myGNSS.getLatitude();
+	tosend.lon = myGNSS.getLongitude();
+	tosend.elev = myGNSS.getAltitude();
+	tosend.ground_speed = myGNSS.getGroundSpeed();	
 // 	int SIV = myGNSS.getSIV();
 
   if (ecu.decode(msg)) {
-      // Serial.println(msg.id);
-
-    // check engine
-    bool engine_bad = true;
-    digitalWrite(CHECK_ENGINE, engine_bad ? HIGH : LOW);
-
-    // shift lights
-    // if (rpm > 7000) digitalWrite(SHIFT_GREEN, HIGH)//......
-
-    // show displays
-    display1.show(ecu.data.map);
-    // Serial.println(ecu.data.map);
-    // DASHBOARD_STATE v = (DASHBOARD_STATE)2;
-    // switch (v) {
-    //   case OFF:
-    //     display1.show("....");
-    //     // display1.show(0);
-    //     break;
-    //   case RPM:
-    //     display1.show(data.rpm);
-    //     // display1.show(1);
-    //     break;
-    //   case COOLANT:
-    //     display1.show(data.clt);
-    //     // display1.show(2);
-    //     break;
-    //   case BATTERY:
-    //     display1.show(data.batt);
-    //     // display1.show(3);
-    //     break;
-    //   case THROTTLE_POS:
-    //     display1.show(data.tps);
-    //     // display1.show(4);
-    //     break;
-    //   case GEAR:
-    //     display1.show(data.gear);
-    //     // display1.show(5);
-    //     break;
-    //   default:
-    //     display1.show("    ");
-    //     break;
-    // }
+    // bool engine_bad = true;
+    // digitalWrite(CHECK_ENGINE, engine_bad ? HIGH : LOW);
+    tosend.rpm = ecu.data.rpm;
+    tosend.time = ecu.data.seconds;
+    tosend.afr = ecu.data.AFR1;
+    tosend.spark_advance = ecu.data.adv_deg;
+    tosend.baro = ecu.data.baro;
+    tosend.map = ecu.data.map;
+    tosend.mat = ecu.data.mat;
+    tosend.clnt_temp = ecu.data.clt;
+    tosend.tps = ecu.data.tps;
+    tosend.batt = ecu.data.batt;
+    tosend.oil_press = ecu.data.sensors1;
+    tosend.syncloss_count = ecu.data.synccnt;
+    tosend.syncloss_code = ecu.data.syncreason;
+    tosend.ltcl_timing = ecu.data.launch_timing;
+    tosend.ve1 = ecu.data.ve1;
+    tosend.ve2 = ecu.data.ve2;
+    tosend.egt = ecu.data.egt1;
+    tosend.maf = ecu.data.MAF;
+    tosend.in_temp = ecu.data.airtemp;
   } else if (msg.id == 935444) {
     double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
     double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
@@ -99,15 +89,19 @@ void handler(const CAN_message_t &msg) {
       else digitalWrite(pin, LOW);
     }
   }
+  if (millis() > lastwrite + WRITE_FREQ) {
+    tosend.millis = millis();
+    file.write((byte*) &tosend, sizeof(tosend));
+    lastwrite = millis();
+  }
 }
 
 void setup() {
+  Serial.begin(9600);
   if (!SD.begin(BUILTIN_SDCARD)) {
     Serial.println(F("SD CARD FAILED, OR NOT PRESENT!"));
     while(1);
   }
-  file = SD.open("log.txt", FILE_WRITE);
-
 
   accel.begin();
   gyro.begin();
@@ -116,17 +110,23 @@ void setup() {
 	pinMode(25, INPUT_PULLUP);
 
   Wire2.begin();
-  if (myGNSS.begin(Wire2) == false) //Connect to the u-blox module using Wire port {
+  if (myGNSS.begin(Wire2) == false) { //Connect to the u-blox module using Wire port {
 		Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
 		while (1);
 	}
-  myGNSS.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
-	myGNSS.setNavigationFrequency(10); //Produce two solutions per second
-	myGNSS.setAutoPVT(true); //Tell the GNSS to "send" each solution
 
-  for (int i: SHIFT_GREEN) {pinMode(i, OUTPUT);digitalWrite(i, HIGH);}
-  for (int i: SHIFT_YELLOW) {pinMode(i, OUTPUT);digitalWrite(i, HIGH);}
-  for (int i: SHIFT_RED) {pinMode(i, OUTPUT);digitalWrite(i, HIGH);}
+  myGNSS.checkUblox();
+  String filename = String(myGNSS.getYear()) + "-" + String(myGNSS.getMonth()) + "-" + String(myGNSS.getDay()) +\
+                  "-" + String(myGNSS.getHour()) + ":" + String(myGNSS.getMinute()) + ":" + String(myGNSS.getSecond() + ".bin");
+  file = SD.open(filename.c_str(), FILE_WRITE);
+
+  // myGNSS.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
+	// myGNSS.setNavigationFrequency(10); //Produce two solutions per second
+	// myGNSS.setAutoPVT(true); //Tell the GNSS to "send" each solution
+
+  for (int i = 0; i < 14; i++) {
+    pinMode(ALL_LEDS[i], OUTPUT);
+  }
   pinMode(CHECK_ENGINE, OUTPUT);
 
   Serial.begin(9600);
@@ -149,5 +149,40 @@ void loop() {
   // Serial.println("loop...");
 
   // display1.show(selector.get());
+  // Serial.println(selector.get());
   Can.events();
+}
+
+
+void set_rpm(int i) {
+  if (i <= 6500) {
+    digitalWrite(ALL_LEDS[0], HIGH);
+    digitalWrite(ALL_LEDS[1], HIGH);
+    // delay(500);
+    digitalWrite(ALL_LEDS[0], LOW);
+    digitalWrite(ALL_LEDS[1], LOW);
+    // delay(500);
+  } 
+  else if (i > 6500 && i < 9500) {
+    int numLeds = (i - 6500) / 429;  
+    for (int j = 0; j <= (numLeds*2) && j < 14; j = j+2) {  
+      digitalWrite(ALL_LEDS[j], HIGH);
+   
+      digitalWrite(ALL_LEDS[j+1], HIGH);
+    }
+   
+  } 
+  else {
+    for (int j = 0; j < 14; j++) {
+      digitalWrite(ALL_LEDS[j], HIGH);
+    }
+    // delay(500);
+    for (int j = 0; j < 14; j++) {
+      digitalWrite(ALL_LEDS[j], LOW);
+    }
+    // delay(500);
+    for (int j = 0; j < 14; j++) {
+      digitalWrite(ALL_LEDS[j], HIGH);
+    }
+  }
 }

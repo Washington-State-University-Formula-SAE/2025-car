@@ -2,7 +2,7 @@
 
 void Selector::initialize() {
   for (int i=0;i<6;i++) {
-    pinMode(pins[i], INPUT);
+    pinMode(pins[i], INPUT_PULLDOWN);
   }
 }
 
