@@ -40,7 +40,6 @@ typedef struct row {
   int lat;
   int lon;
   int elev;
-  int year;
   int hour;
   int minute;
   int second;

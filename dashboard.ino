@@ -18,7 +18,7 @@ Bmi088Accel accel(Wire,0x18);
 Bmi088Gyro gyro(Wire,0x68);
 SFE_UBLOX_GNSS myGNSS;
 SevenSegment display1(0x70, &Wire);
-// SevenSegment display2(0x70, &Wire1);
+SevenSegment display2(0x70, &Wire1);
 Selector selector(SELECTOR_PINS);
 MegaSquirt3 ecu;
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> Can;
