@@ -96,7 +96,7 @@ void handler(const CAN_message_t &msg) {
 
   // write to SD card if time in time
   if (!is_dashboard && millis() > lastwrite + WRITE_FREQ) {
-    tosend.millis = millis();
+    tosend.write_millis = millis();
     file.write((byte*) &tosend, sizeof(tosend));
     lastwrite = millis();
   }
@@ -167,7 +167,10 @@ void setup() {
 }
 CAN_message_t msg;
 
-void loop() {Can.events();}
+void loop() {
+  set_rpm(7000);
+  // Can.events();
+  }
 void set_rpm(int i) {
   if (i <= 6500) {
     digitalWrite(ALL_LEDS[0], HIGH);

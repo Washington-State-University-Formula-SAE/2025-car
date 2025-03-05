@@ -12,5 +12,5 @@ int Selector::get() {
         return (int)i;
       }
     }
-    return OFF;
+    return 0;
 }

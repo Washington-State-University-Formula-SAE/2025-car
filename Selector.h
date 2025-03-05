@@ -20,7 +20,7 @@ public:
   Selector(const int* pins) : pins(pins) {}
   
   void initialize();
-  DASHBOARD_STATE get();
+  int get();
 };
 
 #endif
