@@ -5,6 +5,7 @@
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h>
 #include "SevenSegment.h"
 #include "Selector.h"
+#include "Display.h"
 
 bool is_dashboard = true;
 
@@ -12,7 +13,9 @@ const int WRITE_FREQ = 5000; // ms
 
 const int SELECTOR_PINS[] = {35, 36, 37, 38, 39, 40};
 const int CHECK_ENGINE = 27;
-const int ALL_LEDS[14] = {4, 9, 5, 8, 6, 7, 3, 10, 2, 11, 1, 12, 0, 26};
+const int ALL_LEDS[14] = {4, 26, 5, 8, 6, 7, 3, 10, 2, 11, 1, 12, 0, 9};
+// const int ALL_LEDS[14] = {4, 4,4,4,4,4,4,4,4,4,4,4,4,4};
+
 
 Bmi088Accel accel(Wire,0x18);
 Bmi088Gyro gyro(Wire,0x68);
@@ -121,6 +124,7 @@ void handler(const CAN_message_t &msg) {
 }
 
 void setup() {
+  intro();
   Serial.begin(9600);
 
   if (is_dashboard) {
@@ -167,8 +171,21 @@ void setup() {
 }
 CAN_message_t msg;
 
+int i = 0;
 void loop() {
-  set_rpm(7000);
+  // Serial.println(99);
+  // writting(ecu);
+  // // set_rpm(7000);
+  i += 1;
+  if (i > 14) {
+    i = 0;
+  }
+  digitalWrite(ALL_LEDS[i], HIGH);
+  delay(1000);
+  for (int j = 0; j < 14; j++) {  
+      digitalWrite(ALL_LEDS[j], LOW);
+    }
+   
   // Can.events();
   }
 void set_rpm(int i) {

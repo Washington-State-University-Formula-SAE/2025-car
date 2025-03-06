@@ -40,14 +40,14 @@ void displayRPM(int rpm) {
 
   setup(&matrix1, &matrix2);
 
-  matrix2.println("RPN");
+  matrix2.println("RPn");
   matrix1.println(rpm);
   matrix2.writeDisplay();
   matrix1.writeDisplay();
-  delay(500);
+  delay(100);
 
-  matrix1.setDisplayState(false);
-  matrix2.setDisplayState(false);
+  // matrix1.setDisplayState(false);
+  // matrix2.setDisplayState(false);
 }
 
 void displayClt(int coolant) {
