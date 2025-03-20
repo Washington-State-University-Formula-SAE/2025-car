@@ -24,7 +24,7 @@ SevenSegment display1(0x70, &Wire);
 SevenSegment display2(0x70, &Wire1);
 Selector selector(SELECTOR_PINS);
 MegaSquirt3 ecu;
-FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> Can;
+FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
 
 File file;
 ROW tosend;
@@ -32,7 +32,7 @@ uint32_t lastwrite = 0;
 
 
 void handler(const CAN_message_t &msg) {
-  
+  Serial.println("message");
   // log directly wired sensors:
   if (!is_dashboard) {
     // log accelerometer
@@ -124,19 +124,26 @@ void handler(const CAN_message_t &msg) {
 }
 
 void setup() {
-  intro();
+  // intro();
   Serial.begin(9600);
 
+   Serial.println("A");
+
   if (is_dashboard) {
+       Serial.println("B");
     for (int i = 0; i < 14; i++) {
       pinMode(ALL_LEDS[i], OUTPUT);
     }
+       Serial.println("C");
     pinMode(CHECK_ENGINE, OUTPUT);
+       Serial.println("D");
 
-    Serial.begin(9600);
+       Serial.println("E");
 
     selector.initialize();
+       Serial.println("F");
     display1.initialize();
+       Serial.println("G");
   } else {
     if (!SD.begin(BUILTIN_SDCARD)) {
       Serial.println(F("SD CARD FAILED, OR NOT PRESENT!"));
@@ -161,6 +168,8 @@ void setup() {
     file = SD.open(filename.c_str(), FILE_WRITE);
   }
 
+   Serial.println("H");
+
   Can.begin();
   Can.setBaudRate(500000); //set to 500000 for normal Megasquirt usage - need to change Megasquirt firmware to change MS CAN baud rate
   Can.setMaxMB(16); //sets maximum number of mailboxes for FlexCAN_T4 usage
@@ -168,26 +177,28 @@ void setup() {
   Can.enableFIFOInterrupt();
   Can.mailboxStatus();
   Can.onReceive(handler); //when a CAN message is received, runs the canMShandler function
+
+   Serial.println("started can B");
 }
 CAN_message_t msg;
 
 int i = 0;
 void loop() {
-  // Serial.println(99);
-  // writting(ecu);
-  // // set_rpm(7000);
-  i += 1;
-  if (i > 14) {
-    i = 0;
-  }
-  digitalWrite(ALL_LEDS[i], HIGH);
-  delay(1000);
-  for (int j = 0; j < 14; j++) {  
-      digitalWrite(ALL_LEDS[j], LOW);
-    }
-   
-  // Can.events();
-  }
+  // // Serial.println(99);
+  // // writting(ecu);
+  // // // set_rpm(7000);
+  // i += 1;
+  // if (i > 14) {
+  //   i = 0;
+  // }
+  // digitalWrite(ALL_LEDS[i], HIGH);
+  // delay(1000);
+  // for (int j = 0; j < 14; j++) {  
+  //     digitalWrite(ALL_LEDS[j], LOW);
+  //   }
+  //  Serial.println("started can 2");
+  Can.events(); 
+}
 void set_rpm(int i) {
   if (i <= 6500) {
     digitalWrite(ALL_LEDS[0], HIGH);
