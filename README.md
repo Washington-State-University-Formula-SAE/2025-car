@@ -1,6 +1,6 @@
 # wazzu racing fsae CAN software
 
-## wiring
+## Wiring
 CAN:
   - ECU: green H, purple L
   - Breadboarding: green H, red L
