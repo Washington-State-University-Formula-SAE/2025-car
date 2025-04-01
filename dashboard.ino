@@ -3,16 +3,18 @@
 #include <Wire.h>
 #include <SD.h>
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h>
-#include "SevenSegment.h"
 #include "Selector.h"
 #include "Display.h"
 
+bool is_dashboard = false;
+
+const int WRITE_FREQ = 10; // ms
+
 const int SELECTOR_PINS[] = {35, 36, 37, 38, 39, 40};
 const int CHECK_ENGINE = 27;
-const int SHIFT_GREEN[] = {4, 5, 6, 7, 8, 9};
-const int SHIFT_YELLOW[] = {2, 3, 10, 11};
-const int SHIFT_RED[] = {0, 1, 12, 26};
-// const int ALL_LEDS[] = {7,8,9,10,11,12,26,    1,0,2,3,4,5,6};
+const int DATA_SWITCH = 28;
+const int ALL_LEDS[14] = {4, 26, 5, 8, 6, 7, 3, 10, 2, 11, 1, 12, 0, 9};
+// const int ALL_LEDS[14] = {4, 4,4,4,4,4,4,4,4,4,4,4,4,4};
 
 // const int ALL_LEDS[] =  {0,1,2,3,4,5,  8,9,10,11,7,6};
 
@@ -20,7 +22,6 @@ Bmi088Accel accel(Wire,0x18);
 Bmi088Gyro gyro(Wire,0x68);
 SFE_UBLOX_GNSS myGNSS;
 SevenSegment display1(0x70, &Wire);
-// SevenSegment display2(0x70, &Wire1);
 Selector selector(SELECTOR_PINS);
 MegaSquirt3 ecu;
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
@@ -121,12 +122,29 @@ void handler(const CAN_message_t &msg) {
     Serial.print(d);Serial.print("\t batt: ");
     Serial.println(ecu.data.batt);
 
-    double maxled = a * 14;
-
-    for (int i=0;i<12;i++) {
-      int pin = ALL_LEDS[i];
-      if (i+1 <= maxled + 0.2) digitalWrite(pin, HIGH);
-      else digitalWrite(pin, LOW);
+  // write to SD card if time in time
+  if (!is_dashboard && millis() > lastwrite + WRITE_FREQ) {
+    tosend.write_millis = millis();
+    file.write((byte*) &tosend, sizeof(tosend));
+    Serial.println("WROTE ##############################################################");
+    lastwrite = millis();
+  }
+  if (is_dashboard) {
+    switch (selector.get()) {
+      case 0:
+        break;
+      case 1:
+        break;
+      case 2:
+        break;
+      case 3:
+        break;
+      case 4:
+        break;
+      case 5:
+        break;
+      default:
+        break;
     }
   }
 }
@@ -264,12 +282,15 @@ void setup() {
 
     selector.initialize();
     display1.initialize();
+       Serial.println("F");
+    // display1.initialize();
+       Serial.println("G");
   } else {
     if (!SD.begin(BUILTIN_SDCARD)) {
       Serial.println(F("SD CARD FAILED, OR NOT PRESENT!"));
       while(1);
     }
-
+    Serial.println("@@@@@@@@@@@@@@@@@@");
     accel.begin();
     gyro.begin();
 
@@ -278,14 +299,18 @@ void setup() {
 
     Wire2.begin();
     if (myGNSS.begin(Wire2) == false) { //Connect to the u-blox module using Wire port {
-      Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
-      while (1);
+      // Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
+      // while (1);
     }
 
     myGNSS.checkUblox();
     String filename = String(myGNSS.getYear()) + "-" + String(myGNSS.getMonth()) + "-" + String(myGNSS.getDay()) +\
                     "-" + String(myGNSS.getHour()) + ":" + String(myGNSS.getMinute()) + ":" + String(myGNSS.getSecond() + ".bin");
-    file = SD.open(filename.c_str(), FILE_WRITE);
+    // file = SD.open(filename.c_str(), FILE_WRITE);
+    file = SD.open("bb.txt", FILE_WRITE);
+    file.write("hello\n", 6);
+    // file.close();
+    Serial.println(filename);
   }
 
   Can.begin();
