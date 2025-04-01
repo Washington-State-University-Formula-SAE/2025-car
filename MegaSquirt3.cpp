@@ -1,5 +1,6 @@
 #include "MegaSquirt3.h"
 
+
 void MegaSquirt3::initialize() {
 
 }
@@ -33,6 +34,10 @@ bool MegaSquirt3::decode(const CAN_message_t &msg) {
           Serial.print("Intake air temp:\t");Serial.print(data.airtemp);Serial.println("\tdeg F");
           Serial.print("Gear:\t\t\t");Serial.print(data.gear);Serial.println("\t");
           Serial.print("\n\n");Serial.println("\t()");
+
+          
+
+
     // Serial.println(data.map);
       return true;
     }

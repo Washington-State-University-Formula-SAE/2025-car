@@ -1,5 +1,6 @@
 #ifndef DISPLAY_H
 #define DISPLAY_H
+// #ifndef __AVR_ATtiny85__
 
 #include <Wire.h> 
 #include <Adafruit_GFX.h>
@@ -10,19 +11,29 @@
 #include <SD.h>
 #include <SparkFun_u-blox_GNSS_Arduino_Library.h>
 
-void setup(Adafruit_7segment *matrix1, Adafruit_7segment *matrix2);
+#include <Wire.h> // Enable this line if using Arduino Uno, Mega, etc.
+#include <Adafruit_GFX.h>
+#include "Adafruit_LEDBackpack.h"
 
-void intro();
+#include <cmath>
+#include <stdio.h>
 
-void displayRPM(int rpm);
+const int ALL_LEDS[] =  {0,1,2,3,4,5,  8,9,10,11,7,6};
 
-void displayClt(int coolant);
+void lightSequence(void);
 
-void displayOilPres(int oilPressure);
+// returns size of num
+int length(int num);
 
-void writting(MegaSquirt3 ecu);
+void arrangeMid(int rpm, Adafruit_7segment matrix1, Adafruit_7segment matrix2);
+
+void displayRPM(int rpm, Adafruit_7segment matrix1, Adafruit_7segment matrix2);
+
+void displayClt(int coolant, Adafruit_7segment matrix1, Adafruit_7segment matrix2);
+
+void displayOilPres(int oilPressure, Adafruit_7segment matrix1, Adafruit_7segment matrix2);
+
+int displaying(MegaSquirt3 ecu, Adafruit_7segment matrix1, Adafruit_7segment matrix2, int re);
 
 
 #endif
-
-

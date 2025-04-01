@@ -3,16 +3,16 @@
 
 #include "Arduino.h"
 
-// typedef enum dboard_state {
-//   OFF,
-//   RPM,
-//   BATTERY,
-//   THROTTLE_POS,
-//   GEAR,
-//   MAP,
-//   BAROMETER,
-//   COOLANT
-// } DASHBOARD_STATE;
+typedef enum dboard_state {
+  OFF,
+  RPM,
+  BATTERY,
+  THROTTLE_POS,
+  GEAR,
+  MAP,
+  BAROMETER,
+  COOLANT
+} DASHBOARD_STATE;
 
 class Selector {
   const int* pins;
@@ -20,7 +20,7 @@ public:
   Selector(const int* pins) : pins(pins) {}
   
   void initialize();
-  int get();
+  DASHBOARD_STATE get();
 };
 
 #endif

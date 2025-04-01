@@ -2,15 +2,15 @@
 
 void Selector::initialize() {
   for (int i=0;i<6;i++) {
-    pinMode(pins[i], INPUT_PULLDOWN);
+    pinMode(pins[i], INPUT);
   }
 }
 
-int Selector::get() {
+DASHBOARD_STATE Selector::get() {
     for (int i=0;i<6;i++) {
       if (digitalRead(pins[i]) == HIGH) {
-        return (int)i;
+        return (DASHBOARD_STATE)i;
       }
     }
-    return 0;
+    return OFF;
 }

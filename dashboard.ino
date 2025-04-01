@@ -16,84 +16,111 @@ const int DATA_SWITCH = 28;
 const int ALL_LEDS[14] = {4, 26, 5, 8, 6, 7, 3, 10, 2, 11, 1, 12, 0, 9};
 // const int ALL_LEDS[14] = {4, 4,4,4,4,4,4,4,4,4,4,4,4,4};
 
+// const int ALL_LEDS[] =  {0,1,2,3,4,5,  8,9,10,11,7,6};
 
 Bmi088Accel accel(Wire,0x18);
 Bmi088Gyro gyro(Wire,0x68);
 SFE_UBLOX_GNSS myGNSS;
+SevenSegment display1(0x70, &Wire);
 Selector selector(SELECTOR_PINS);
 MegaSquirt3 ecu;
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> Can;
+int re;
 
+// #include <Wire.h> // Enable this line if using Arduino Uno, Mega, etc.
+#include <Adafruit_GFX.h>
+#include "Adafruit_LEDBackpack.h"
+
+Adafruit_7segment matrix1 = Adafruit_7segment();
+
+Adafruit_7segment matrix2 = Adafruit_7segment();
+
+
+// Adafruit_7segment matrix = Adafruit_7segment();
+    // Adafruit_7segment matrix1 = Adafruit_7segment();
+bool is_dashboard = true;
 File file;
-ROW tosend;
-uint32_t lastwrite = 0;
-
 
 void handler(const CAN_message_t &msg) {
-  Serial.println("message");
-  // log directly wired sensors:
-  if (!is_dashboard) {
-    // log accelerometer
-    accel.readSensor();
-    tosend.ax = accel.getAccelX_mss();
-    tosend.ay = accel.getAccelY_mss();
-    tosend.az = accel.getAccelZ_mss();
-    tosend.accel_millis = millis();
+  
+//   accel.readSensor();
+//   gyro.readSensor();
 
-    // log gyro
-    gyro.readSensor();
-    tosend.imu_x = gyro.getGyroX_rads();
-    tosend.imu_y = gyro.getGyroY_rads();
-    tosend.imu_z = gyro.getGyroZ_rads();
-    tosend.imu_millis = millis();
+// myGNSS.checkUblox(); // Check for the arrival of new data and process it.
+// 	int latitude = myGNSS.getLatitude();
+// 	int longitude = myGNSS.getLongitude();
+// 	int altitude = myGNSS.getAltitude();
+// 	int groundSpeed = myGNSS.getGroundSpeed();
+	
+// 	int SIV = myGNSS.getSIV();
 
-    // log GPS
-    myGNSS.checkUblox();
-    tosend.hour = myGNSS.getHour();
-    tosend.minute = myGNSS.getMinute();
-    tosend.second = myGNSS.getSecond();
-    tosend.lat = myGNSS.getLatitude();
-    tosend.lon = myGNSS.getLongitude();
-    tosend.elev = myGNSS.getAltitude();
-    tosend.ground_speed = myGNSS.getGroundSpeed();	
-    tosend.gps_millis = millis();
-  }
+
+    ecu.data.rpm = 90;
+
+    Serial.println("This is the rpm");
+    Serial.println(ecu.data.rpm);
 
   if (ecu.decode(msg)) {
-    // read ecu data
-    // =============
-    if (is_dashboard) {
-      set_rpm(ecu.data.rpm);
-    }
-    tosend.rpm = ecu.data.rpm;
-    tosend.time = ecu.data.seconds;
-    tosend.afr = ecu.data.AFR1;
-    tosend.spark_advance = ecu.data.adv_deg;
-    tosend.baro = ecu.data.baro;
-    tosend.map = ecu.data.map;
-    tosend.mat = ecu.data.mat;
-    tosend.clnt_temp = ecu.data.clt;
-    tosend.tps = ecu.data.tps;
-    tosend.batt = ecu.data.batt;
-    tosend.oil_press = ecu.data.sensors1;
-    tosend.syncloss_count = ecu.data.synccnt;
-    tosend.syncloss_code = ecu.data.syncreason;
-    tosend.ltcl_timing = ecu.data.launch_timing;
-    tosend.ve1 = ecu.data.ve1;
-    tosend.ve2 = ecu.data.ve2;
-    tosend.egt = ecu.data.egt1;
-    tosend.maf = ecu.data.MAF;
-    tosend.in_temp = ecu.data.airtemp;
-    tosend.ecu_millis = millis();
+      // Serial.println(msg.id);
+
+    //Serial.println("this is the rpm");
+
+
+
+
+
+    //Serial.println(data.rpm);
+
+    // check engine
+    bool engine_bad = true;
+    digitalWrite(CHECK_ENGINE, engine_bad ? HIGH : LOW);
+
+    // shift lights
+    // if (rpm > 7000) digitalWrite(SHIFT_GREEN, HIGH)//......
+
+    // show displays
+    display1.show(ecu.data.map);
+    Serial.println(ecu.data.map);
+    //DASHBOARD_STATE v = (DASHBOARD_STATE)2;
+    // switch (v) {
+    //   case OFF:
+    //     display1.show("....");
+    //     // display1.show(0);
+    //     break;
+    //   case RPM:
+    //     display1.show(data.rpm);
+    //     // display1.show(1);
+    //     break;
+    //   case COOLANT:
+    //     display1.show(data.clt);
+    //     // display1.show(2);
+    //     break;
+    //   case BATTERY:
+    //     display1.show(data.batt);
+    //     // display1.show(3);
+    //     break;
+    //   case THROTTLE_POS:
+    //     display1.show(data.tps);
+    //     // display1.show(4);
+    //     break;
+    //   case GEAR:
+    //     display1.show(data.gear);
+    //     // display1.show(5);
+    //     break;
+    //   default:
+    //     display1.show("    ");
+    //     break;
+    // }
   } else if (msg.id == 935444) {
-    // This is for all of the AnalogX stuff (one `if` statment per ID):
-    // =====================================================
-    tosend.analogx1_millis = millis();
     double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
     double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
     double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
     double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
-  }
+    Serial.print(a);Serial.print("\t");
+    Serial.print(b);Serial.print("\t");
+    Serial.print(c);Serial.print("\t");
+    Serial.print(d);Serial.print("\t batt: ");
+    Serial.println(ecu.data.batt);
 
   // write to SD card if time in time
   if (!is_dashboard && millis() > lastwrite + WRITE_FREQ) {
@@ -122,24 +149,139 @@ void handler(const CAN_message_t &msg) {
   }
 }
 
-void setup() {
-  // intro();
-  Serial.begin(9600);
+// void setup() {
 
-   Serial.println("A");
+//     intro();
+
+
+  // #ifndef __AVR_ATtiny85__
+  // Serial.begin(9600);
+  // Serial.println("7 Segment Backpack Test");
+  // #endif
+  // matrix.begin(0x70);
+
+
+
+
+
+    // ecu.data.rpm = 90;
+
+    // Serial.println("this is the rpm");
+    // Serial.println(ecu.data.rpm);
+
+
+  // matrix.print(" gO ");
+  // matrix.writeDisplay();
+  // delay(10);
+
+
+  // if (!SD.begin(BUILTIN_SDCARD)) {
+
+
+
+    // ecu.data.rpm = 90;
+
+    // Serial.println("this is the rpm");
+    // Serial.println(ecu.data.rpm);
+
+    // matrix.print(ecu.data.rpm);
+    // matrix.writeDisplay();
+    // delay(10);
+
+    // Serial.println("just finished displaying");
+
+
+  //   Serial.println(F("SD CARD FAILED, OR NOT PRESENT!"));
+  //   while(1);
+  // }
+  // file = SD.open("log.txt", FILE_WRITE);
+
+
+  // accel.begin();
+  // gyro.begin();
+
+  // pinMode(24, INPUT_PULLUP);
+	// pinMode(25, INPUT_PULLUP);
+
+  // Wire2.begin();
+  // if (myGNSS.begin(Wire2) == false) //Connect to the u-blox module using Wire port {
+	// 	Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
+	// 	while (1);
+	// }
+  // myGNSS.setI2COutput(COM_TYPE_UBX); //Set the I2C port to output UBX only (turn off NMEA noise)
+	// myGNSS.setNavigationFrequency(10); //Produce two solutions per second
+	// myGNSS.setAutoPVT(true); //Tell the GNSS to "send" each solution
+
+  // for (int i: SHIFT_GREEN) {pinMode(i, OUTPUT);digitalWrite(i, HIGH);}
+  // for (int i: SHIFT_YELLOW) {pinMode(i, OUTPUT);digitalWrite(i, HIGH);}
+  // for (int i: SHIFT_RED) {pinMode(i, OUTPUT);digitalWrite(i, HIGH);}
+  // pinMode(CHECK_ENGINE, OUTPUT);
+
+  // Serial.begin(9600);
+
+  // selector.initialize();
+  // display1.initialize();
+  // // this->callback = callback;
+
+  // Can.begin();
+  // Can.setBaudRate(500000); //set to 500000 for normal Megasquirt usage - need to change Megasquirt firmware to change MS CAN baud rate
+  // Can.setMaxMB(16); //sets maximum number of mailboxes for FlexCAN_T4 usage
+  // Can.enableFIFO();
+  // Can.enableFIFOInterrupt();
+  // Can.mailboxStatus();
+  // Can.onReceive(handler); //when a CAN message is received, runs the canMShandler function
+// }
+// CAN_message_t msg;
+
+// void loop() {
+//   ecu.data.rpm = ecu.data.rpm + 20;
+//   ecu.data.clt = ecu.data.clt + 20;
+//   ecu.data.sensors1 = ecu.data.sensors1 + 20;
+//   writting(ecu);
+//   Serial.println("this is the rpm");
+
+//   if (ecu.data.clt > 250) {
+//     ecu.data.clt = 0;
+//   }
+
+//   if (ecu.data.sensors1 > 100) {
+//     ecu.data.sensors1 = -1;
+//   }
+
+//   //iterate("ECU");
+//   // flash();
+//   //writting(ecu);
+
+//   // display1.show(selector.get());
+//   Can.events();
+// }
+
+
+
+
+void setup() {
+  Serial.begin(9600);
+  //  intro();
+    #ifndef __AVR_ATtiny85__
+    Serial.begin(9600);
+    Serial.println("7 Segment Backpack Test");
+    #endif
+    matrix1.begin(0x70, &Wire);
+    matrix2.begin(0x70, &Wire1);
+   Serial.println("no connection");
+
+   lightSequence();
 
   if (is_dashboard) {
-       Serial.println("B");
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 12; i++) {
       pinMode(ALL_LEDS[i], OUTPUT);
     }
-       Serial.println("C");
     pinMode(CHECK_ENGINE, OUTPUT);
-       Serial.println("D");
 
-       Serial.println("E");
+    Serial.begin(9600);
 
     selector.initialize();
+    display1.initialize();
        Serial.println("F");
     // display1.initialize();
        Serial.println("G");
@@ -171,8 +313,6 @@ void setup() {
     Serial.println(filename);
   }
 
-   Serial.println("H");
-
   Can.begin();
   Can.setBaudRate(500000); //set to 500000 for normal Megasquirt usage - need to change Megasquirt firmware to change MS CAN baud rate
   Can.setMaxMB(16); //sets maximum number of mailboxes for FlexCAN_T4 usage
@@ -180,29 +320,15 @@ void setup() {
   Can.enableFIFOInterrupt();
   Can.mailboxStatus();
   Can.onReceive(handler); //when a CAN message is received, runs the canMShandler function
-
-   Serial.println("started can B");
 }
 CAN_message_t msg;
 
-int i = 0;
-void loop() {
-  // // Serial.println(99);
-  // // writting(ecu);
-  // // // set_rpm(7000);
-  // i += 1;
-  // if (i > 14) {
-  //   i = 0;
-  // }
-  // digitalWrite(ALL_LEDS[i], HIGH);
-  // delay(1000);
-  // for (int j = 0; j < 14; j++) {  
-  //     digitalWrite(ALL_LEDS[j], LOW);
-  //   }
-  //  Serial.println("started can 2");
-  Can.events(); 
-}
+// void loop(){
+//   set_rpm(7000);
+// }
 void set_rpm(int i) {
+
+
   if (i <= 6500) {
     digitalWrite(ALL_LEDS[0], HIGH);
     digitalWrite(ALL_LEDS[1], HIGH);
@@ -213,7 +339,7 @@ void set_rpm(int i) {
   } 
   else if (i > 6500 && i < 9500) {
     int numLeds = (i - 6500) / 429;  
-    for (int j = 0; j <= (numLeds*2) && j < 14; j = j+2) {  
+    for (int j = 0; j <= (numLeds*2) && j < 12; j = j+2) {  
       digitalWrite(ALL_LEDS[j], HIGH);
    
       digitalWrite(ALL_LEDS[j+1], HIGH);
@@ -221,16 +347,50 @@ void set_rpm(int i) {
    
   } 
   else {
-    for (int j = 0; j < 14; j++) {
+    for (int j = 0; j < 12; j++) {
       digitalWrite(ALL_LEDS[j], HIGH);
     }
     // delay(500);
-    for (int j = 0; j < 14; j++) {
+    for (int j = 0; j < 12; j++) {
       digitalWrite(ALL_LEDS[j], LOW);
     }
     // delay(500);
-    for (int j = 0; j < 14; j++) {
+    for (int j = 0; j < 12; j++) {
       digitalWrite(ALL_LEDS[j], HIGH);
     }
   }
+
+  // Adafruit_7segment matrix1 = Adafruit_7segment();
+  Serial.println("done");
 }
+
+
+void loop(){
+
+  // matrix1.print(100, DEC);
+  // matrix1.writeDisplay();
+  // delay(500);
+  // Serial.println("kk");
+  // matrix2.print(10, DEC);
+  // matrix2.writeDisplay();
+  // delay(500);
+  // Serial.println("kk");
+
+
+  ecu.data.rpm = ecu.data.rpm + 5;
+  ecu.data.clt = ecu.data.clt + 25;
+  ecu.data.sensors1 = ecu.data.sensors1 + 25;
+  re = displaying(ecu, matrix1, matrix2, re);
+  Serial.println("this is the rpm");
+
+  if (ecu.data.clt > 250) {
+    ecu.data.clt = 0;
+  }
+
+  if (ecu.data.sensors1 > 100) {
+    ecu.data.sensors1 = -1;
+  }
+
+  // set_rpm(7000);
+}
+
