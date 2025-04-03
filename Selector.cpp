@@ -2,15 +2,18 @@
 
 void Selector::initialize() {
   for (int i=0;i<6;i++) {
-    pinMode(pins[i], INPUT);
+    pinMode(pins[i], INPUT_PULLDOWN);
   }
 }
 
-DASHBOARD_STATE Selector::get() {
+int Selector::get() {
     for (int i=0;i<6;i++) {
+      // Serial.print(digitalRead(pins[i]));
+      // Serial.print(" ");
       if (digitalRead(pins[i]) == HIGH) {
-        return (DASHBOARD_STATE)i;
+        return (int)(i+1);
       }
     }
-    return OFF;
+    // Serial.println();
+    return 0;
 }
