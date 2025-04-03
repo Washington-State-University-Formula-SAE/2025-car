@@ -68,11 +68,11 @@ int n_digits(int num) {
 
 void displayText(String s, Adafruit_7segment matrix1, Adafruit_7segment matrix2) {
   if (s.length() > 4) {
-    matrix1.print(s.substring(0, 4));
-    matrix2.print(s.substring(4));
+    matrix2.print(s.substring(0, 4));
+    matrix1.print(s.substring(4));
   } else {
-    matrix1.print(s);
-    matrix2.print("");
+    matrix2.print(s);
+    matrix1.print("");
   }
   matrix1.writeDisplay();
   matrix2.writeDisplay();
@@ -261,7 +261,8 @@ int displaying(MegaSquirt3 ecu, Adafruit_7segment matrix1, Adafruit_7segment mat
 
 // SET RPM ==============================================================================================================================================================
 void set_rpm(int i) {
-  bool evenodd = ((int)floor(millis()/1000)) % 2;
+  bool evenodd = ((int)floor(millis()/150)) % 2;
+
   if (i <= 6500) {
     digitalWrite(ALL_LEDS[0], evenodd ? HIGH : LOW);
     digitalWrite(ALL_LEDS[1], evenodd ? HIGH : LOW);
@@ -278,10 +279,8 @@ void set_rpm(int i) {
    
   } 
   else {
-    for (int j = 0; j < 12; j++) {
-      digitalWrite(ALL_LEDS[j], HIGH);
+    for (int j = 0; j < 14; j++) {
+      digitalWrite(ALL_LEDS[j], evenodd ? HIGH : LOW);
     }
-    digitalWrite(ALL_LEDS[12], evenodd ? HIGH : LOW);
-    digitalWrite(ALL_LEDS[13], evenodd ? HIGH : LOW);
   }
 }

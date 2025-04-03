@@ -148,14 +148,16 @@ void handler(const CAN_message_t &msg) {
   if (is_dashboard) {
     int newmode = selector.get();
     Serial.print("newmode: ");
-    Serial.println(newmode);
+    Serial.print(newmode);
+    Serial.print(", ");
+    Serial.println(mode_bounces);
     if (newmode != mode) {
       mode_bounces++;
-      if (mode_bounces > 6) {
+      if (mode_bounces > 70) {
         mode = newmode;
         mode_bounces = 0;
         displayText(MODE_NAMES[mode], matrix1, matrix2);
-        delay(3000);
+        delay(300);
       }
     }
 
@@ -198,8 +200,8 @@ void handler(const CAN_message_t &msg) {
 // SETUP ================================================================================================================================================================
 void setup() {
   Serial.begin(9600);
-  matrix2.begin(0x70, &Wire);
-  matrix1.begin(0x70, &Wire1);
+  matrix1.begin(0x70, &Wire);
+  matrix2.begin(0x70, &Wire1);
 
   if (is_dashboard) {
     // lightSequence();
