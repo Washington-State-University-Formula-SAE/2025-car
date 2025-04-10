@@ -8,7 +8,7 @@
 #include "Display.h"
 
 // SETTINGS =============================================================================================================================================================
-bool is_dashboard = true;
+bool is_dashboard = false;
 const int WRITE_FREQ = 10; // ms
 const int CHECK_ENGINE = 27;
 const int DATA_SWITCH = 28;
@@ -38,6 +38,14 @@ int mode = 0;
 int mode_bounces = 0;
 bool offset;
 
+void openfile() {
+  int i = 0;
+    while (SD.exists((String(i) + ".txt").c_str())) {
+      i++;
+    }
+    file = SD.open((String(i) + ".txt").c_str(), FILE_WRITE);
+}
+
 // MAIN INTERRUPT =======================================================================================================================================================
 void handler(const CAN_message_t &msg) {
   offset = !offset;
@@ -47,16 +55,16 @@ void handler(const CAN_message_t &msg) {
    if (!is_dashboard) {
      // log accelerometer
      accel.readSensor();
-     tosend.ax = accel.getAccelX_mss();
-     tosend.ay = accel.getAccelY_mss();
-     tosend.az = accel.getAccelZ_mss();
+     tosend.ax = accel.getAccelX_mss() * 100;
+     tosend.ay = accel.getAccelY_mss() * 100;
+     tosend.az = accel.getAccelZ_mss() * 100;
      tosend.accel_millis = millis();
  
      // log gyro
      gyro.readSensor();
-     tosend.imu_x = gyro.getGyroX_rads();
-     tosend.imu_y = gyro.getGyroY_rads();
-     tosend.imu_z = gyro.getGyroZ_rads();
+     tosend.imu_x = gyro.getGyroX_rads() * 100;
+     tosend.imu_y = gyro.getGyroY_rads() * 100;
+     tosend.imu_z = gyro.getGyroZ_rads() * 100;
      tosend.imu_millis = millis();
  
      // log GPS
@@ -117,8 +125,15 @@ void handler(const CAN_message_t &msg) {
      tosend.in_temp = ecu.data.airtemp;
      tosend.ecu_millis = millis();
     // check engine
-    bool engine_bad = true;
-    digitalWrite(CHECK_ENGINE, engine_bad ? HIGH : LOW);
+    bool evenodd = ((int)floor(millis()/150)) % 2;
+    bool engine_bad = (ecu.data.clt > 215) || (ecu.data.sensors1 < 5) || (ecu.data.sensors1 > 125) || (ecu.data.batt > 15) || (ecu.data.batt < 7);
+    bool engine_really_bad = (ecu.data.clt > 230) || (ecu.data.sensors1 > 150) || (ecu.data.sensors1 < 1);
+
+    if (engine_really_bad) {
+      digitalWrite(CHECK_ENGINE, evenodd);
+    } else {
+      digitalWrite(CHECK_ENGINE, engine_bad);
+    }
     // show displays
     Serial.print(ecu.data.syncreason);
     Serial.print(", ");
@@ -136,11 +151,15 @@ void handler(const CAN_message_t &msg) {
     // Serial.println(ecu.data.batt);
   }
   // write to SD card if time in time
-  if (!is_dashboard && millis() > lastwrite + WRITE_FREQ) {
-    tosend.write_millis = millis();
-    file.write((byte*) &tosend, sizeof(tosend));
-    // Serial.println("WROTE ##############################################################");
-    lastwrite = millis();
+  if (digitalRead(DATA_SWITCH)) {
+    if (!is_dashboard && millis() > lastwrite + WRITE_FREQ) {
+      tosend.write_millis = millis();
+      file.write((byte*) &tosend, sizeof(tosend));
+      // file.write("END\n");
+      file.flush();
+      Serial.println("WROTE ##############################################################");
+      lastwrite = millis();
+    }
   }
 
   String MODE_NAMES[] = {"1    OFF", "2   SHOW", "3   NORM", "4    RPM", "5   COOL", "6    OIL", "7   BRAK"};
@@ -157,7 +176,7 @@ void handler(const CAN_message_t &msg) {
         mode = newmode;
         mode_bounces = 0;
         displayText(MODE_NAMES[mode], matrix1, matrix2);
-        delay(300);
+        delay(800);
       }
     }
 
@@ -169,7 +188,7 @@ void handler(const CAN_message_t &msg) {
       case 1:
         // standby
         displayText("GO COUGS", matrix1, matrix2);
-        // lightSequence();
+        lightSequence();
         break;
       case 2:
         // standard running
@@ -204,8 +223,8 @@ void setup() {
   matrix2.begin(0x70, &Wire1);
 
   if (is_dashboard) {
-    // lightSequence();
 
+    pinMode(DATA_SWITCH, INPUT);
     for (int i = 0; i < 14; i++) {
       pinMode(ALL_LEDS[i], OUTPUT);
     }
@@ -238,7 +257,7 @@ void setup() {
     Wire2.begin();
     if (myGNSS.begin(Wire2) == false) { //Connect to the u-blox module using Wire port {
       Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
-      // while (1);
+      while (1);
     }
     digitalWrite(STATUS_B, HIGH);
 
@@ -246,9 +265,10 @@ void setup() {
     String filename = String(myGNSS.getYear()) + "-" + String(myGNSS.getMonth()) + "-" + String(myGNSS.getDay()) +\
                     "-" + String(myGNSS.getHour()) + ":" + String(myGNSS.getMinute()) + ":" + String(myGNSS.getSecond() + ".bin");
     // file = SD.open(filename.c_str(), FILE_WRITE);
-    file = SD.open("coletest2.txt", FILE_WRITE);
-    file.write((byte*) &tosend, sizeof(tosend));
+    openfile();
+    // file.write((byte*) &tosend, sizeof(tosend));
     // file.write("hello\n", 6);
+    file.flush();
 
     // file.close();
     Serial.println(filename);
@@ -264,6 +284,8 @@ void setup() {
 }
 void loop(){
   if (!is_dashboard) {
+    digitalWrite(STATUS_A, HIGH);
+    digitalWrite(STATUS_B, HIGH);
     digitalWrite(STATUS_C, HIGH);
   }
   CAN_message_t a;
