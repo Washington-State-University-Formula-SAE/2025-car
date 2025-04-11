@@ -48,6 +48,15 @@
    int imu_x;
    int imu_y;
    int imu_z;
+   int susp_pot_1;
+   int susp_pot_2;
+   int susp_pot_3;
+   int susp_pot_4;
+   int rad_in;
+   int rad_out;
+   int amb_air_temp;
+   int brake1;
+   int brake2;
  } ROW;
  
 

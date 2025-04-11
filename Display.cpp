@@ -1,61 +1,61 @@
 #include "Display.h"
 
-/* BLOCKING */
+void startsequence(Adafruit_7segment matrix1, Adafruit_7segment matrix2) {
+  displayText("88888888", matrix1, matrix2);
+  for (int i=0;i<7;i++) {
+    digitalWrite(ALL_LEDS[(2*i)], HIGH);
+    digitalWrite(ALL_LEDS[(2*i)+1], HIGH);
+    delay(50);
+  }
+  digitalWrite(CHECK_ENGINE, HIGH);
+
+  for (int j=0;j<3;j++) {
+    for (int i=0;i<14;i++) {digitalWrite(ALL_LEDS[i], HIGH);}
+    digitalWrite(CHECK_ENGINE, HIGH);
+    delay(300);
+    for (int i=0;i<14;i++) {digitalWrite(ALL_LEDS[i], LOW);}
+    digitalWrite(CHECK_ENGINE, LOW);
+    delay(300);
+  }
+  for (int i=0;i<14;i++) {digitalWrite(ALL_LEDS[i], LOW);}
+  digitalWrite(CHECK_ENGINE, LOW);
+  off(matrix1, matrix2);
+}
+
+void off(Adafruit_7segment matrix1, Adafruit_7segment matrix2) {
+  for (int i=0;i<14;i++) {digitalWrite(ALL_LEDS[i], LOW);}
+  displayText("        ", matrix1, matrix2);
+}
+
 void lightSequence(void) {
-  // length of array
-  int size = 14;
+  int time = 5; // seconds
+  int steps = 7 + 7 + 4 + 14 + 14 + 8;
+  int step = (((millis() % (time * 1000)) / (time * 1000.0)) * steps);
 
-  // initilize
-  for (int i = 0; i < size; i++) {
-    pinMode(ALL_LEDS[i], OUTPUT);
-  }
+  // Serial.print("...");
+  // Serial.println(step);
 
-  // -->
-  for (int i = 0; i < size/2; i++) {
-    digitalWrite(ALL_LEDS[2*i], HIGH);
-    digitalWrite(ALL_LEDS[(2*i)+1], HIGH);
-    delay(200);
-    digitalWrite(ALL_LEDS[2*i], LOW);
-    digitalWrite(ALL_LEDS[(2*i)+1], LOW);
-  }
-
-  // <--
-  for (int i = size/2; i > 0; i--) {
-    digitalWrite(ALL_LEDS[2*i], HIGH);
-    digitalWrite(ALL_LEDS[(2*i)+1], HIGH);
-    delay(200);
-    digitalWrite(ALL_LEDS[2*i], LOW);
-    digitalWrite(ALL_LEDS[(2*i)+1], LOW);
-  }
-
-  delay(200);
-
-  for (int i = 0; i < size; i++) {
-    if (i % 2 == 0) {
-      digitalWrite(ALL_LEDS[i], HIGH);
-    } else {
-      digitalWrite(ALL_LEDS[i], LOW);
+  if (step < 7) {
+    for (int i=0;i<7;i++) {
+      digitalWrite(ALL_LEDS[2*i], (step==i) ? HIGH : LOW);
+      digitalWrite(ALL_LEDS[(2*i)+1], (step==i) ? HIGH : LOW);
+    }
+  } else if (step < 14) {
+    for (int i=0;i<7;i++) {
+      digitalWrite(ALL_LEDS[2*i], ((step-7)==(6-i)) ? HIGH : LOW);
+      digitalWrite(ALL_LEDS[(2*i)+1], ((step-7)==(6-i)) ? HIGH : LOW);
     }
   }
-  delay(200);
-
-  for (int i = 0; i < size; i++) {
-    digitalWrite(ALL_LEDS[i], LOW);
+  else if (step < 18) {for (int i=0;i<14;i++) {digitalWrite(ALL_LEDS[i], (step%2) ? HIGH : LOW);}}
+  else if (step < 32){
+    for (int i=0;i<7;i++) {digitalWrite(ALL_LEDS[2*i], ((step-18)==i) ? HIGH : LOW);}
+    for (int i=0;i<7;i++) {digitalWrite(ALL_LEDS[(2*i)+1], ((step-18)==((6-i)+7)) ? HIGH : LOW);}
   }
-
-  for (int i = 0; i < size; i++) {
-    if (i % 2 == 1) {
-      digitalWrite(ALL_LEDS[i], HIGH);
-    } else {
-      digitalWrite(ALL_LEDS[i], LOW);
-    }
+  else if (step < 46){
+    for (int i=0;i<7;i++) {digitalWrite(ALL_LEDS[(2*i)+1], ((step-32)==i) ? HIGH : LOW);}
+    for (int i=0;i<7;i++) {digitalWrite(ALL_LEDS[2*i], ((step-32)==((6-i)+7)) ? HIGH : LOW);}
   }
-
-  delay(200);
-
-  for (int i = 0; i < size; i++) {
-      digitalWrite(ALL_LEDS[i], LOW);
-  }
+  else {for (int i=0;i<14;i++) {digitalWrite(ALL_LEDS[i], (step%2) ? HIGH : LOW);}}
 }
 
 // returns number of digits in num
@@ -147,120 +147,57 @@ void displayInt(int value, Adafruit_7segment matrix1, Adafruit_7segment matrix2)
 
 }
 
-
-// void displayRPM(int rpm, Adafruit_7segment matrix1, Adafruit_7segment matrix2) {
-//   matrix2.setDisplayState(true);
-//   matrix1.setDisplayState(true);
-
-//   displayInt(rpm, matrix1, matrix2);
-
-//   delay(500);
-//   matrix1.setDisplayState(false);
-//   matrix2.setDisplayState(false);
-
-// }
-
-
-// void displayClt(int coolant, Adafruit_7segment matrix1, Adafruit_7segment matrix2) {
-//   matrix1.setDisplayState(true);
-//   matrix2.setDisplayState(true);
-
-//   displayInt(coolant, matrix1, matrix2);
-
-//   Serial.println(coolant);
-//   delay(500);
-//   matrix1.setDisplayState(false);
-//   matrix2.setDisplayState(false);
-// }
-
-// void displayOilPres(int oilPressure, Adafruit_7segment matrix1, Adafruit_7segment matrix2) {
-
-//   matrix1.setDisplayState(true);
-//   matrix2.setDisplayState(true);
-  
-//   displayInt(oilPressure, matrix1, matrix2);
-
-//   Serial.println(oilPressure);
-//   delay(500);
-//   matrix1.setDisplayState(false);
-//   matrix1.setDisplayState(false);
-// }
-
-
-int displaying(MegaSquirt3 ecu, Adafruit_7segment matrix1, Adafruit_7segment matrix2, int re) {
+int error_bounces = 0;
+int error_time = 0;
+const int ERROR_DEBOUNCE_MIN = 40;
+const int ERROR_FLASH_TIME = 1000;
+bool displaying(MegaSquirt3 ecu, Adafruit_7segment matrix1, Adafruit_7segment matrix2) {
   int rpm = ecu.data.rpm;
   int coolant = ecu.data.clt;
   int oilPressure = ecu.data.sensors1;
 
   if (coolant > 230) {
-    if (re != 1) {
-    matrix2.setDisplayState(true);
-    matrix1.setDisplayState(true);
+    if (error_bounces++ < ERROR_DEBOUNCE_MIN) {return false;}
+    // here we def have error after min # of bounces
+    if (error_time == 0) {error_time = millis();}
 
-    matrix2.println("CLNt");
-    matrix1.println(" tEP");
-    matrix2.writeDisplay();
-    matrix1.writeDisplay();
-    delay(1000);
-
-    matrix2.setDisplayState(false);
-    matrix1.setDisplayState(false);
-    delay(100);
-    }
-      displayClt(coolant, matrix1, matrix2);
-    
-    Serial.println("error found coolant");
-    return 1;
+    if ((millis() - error_time) < (ERROR_FLASH_TIME)) { displayText("CLNt tEP", matrix1, matrix2); }
+    else if ((millis() - error_time) < (2*ERROR_FLASH_TIME)) { displayInt(coolant, matrix1, matrix2); }
+    else if ((millis() - error_time) < (4*ERROR_FLASH_TIME)) { displayInt(rpm, matrix1, matrix2); }
+    else { error_time = 0; error_bounces = 0;}
+    return true;
   }
+  else if (oilPressure  > 80 || oilPressure < -1 || true) {
+    if (error_bounces++ < ERROR_DEBOUNCE_MIN) {return false;}
+    // here we def have error after min # of bounces
+    if (error_time == 0) {error_time = millis();}
 
-  else if (oilPressure  > 80 || oilPressure < -1) {
-    if (re != 2) {
-
-      matrix1.setDisplayState(true);
-      matrix2.setDisplayState(true);
-      matrix2.println("OIL");
-      matrix1.println("PRES");
-      matrix2.writeDisplay();
-      matrix1.writeDisplay();
-      delay(1000);
-
-      matrix1.setDisplayState(false);
-      matrix2.setDisplayState(false);
-      delay(100);
-
-    }
-
-    displayOilPres(oilPressure, matrix1, matrix2);
-    Serial.println("error found oil pressure");
-    return 2;
+    if ((millis() - error_time) < (ERROR_FLASH_TIME)) { displayText("OIL PRES", matrix1, matrix2); }
+    else if ((millis() - error_time) < (2*ERROR_FLASH_TIME)) { displayInt(oilPressure, matrix1, matrix2); }
+    else if ((millis() - error_time) < (4*ERROR_FLASH_TIME)) { displayInt(rpm, matrix1, matrix2); }
+    else { error_time = 0; error_bounces = 0;}
+    return true;
   }
-
   else {
-
-            if (re != 3) {
-              
-              matrix2.setDisplayState(true);
-              matrix1.setDisplayState(false);
-              matrix2.println("RPN");
-              // matrix1.println("   ");
-              matrix2.writeDisplay();
-              // matrix1.writeDisplay();
-              delay(500);
-
-              matrix2.setDisplayState(false);
-              matrix1.setDisplayState(false);
-              delay(100);
-
-            }
-
-            displayRPM(rpm, matrix1, matrix2);
-            return 3;
+    return false;
   }
-
 }
 
 // SET RPM ==============================================================================================================================================================
+bool ison = false;
+bool carIsOn() {return ison;}
 void set_rpm(int i) {
+  if (i > 5000 && !ison) {
+    ison = true;
+  }
+  if (i < 2500 && ison) {
+    ison = false;
+  }
+  if (!ison) {
+    for (int k=0;k<14;k++) {digitalWrite(ALL_LEDS[k], LOW);}
+    return;
+  }
+
   bool evenodd = ((int)floor(millis()/150)) % 2;
 
   if (i <= 6500) {
@@ -271,10 +208,11 @@ void set_rpm(int i) {
     }
   } 
   else if (i > 6500 && i < 9500) {
-    int numleds = (i - 6500) / 429;  
-    for (int j = 0; j < numleds/2; j++) {  
-      digitalWrite(ALL_LEDS[j], HIGH);
-      digitalWrite(ALL_LEDS[j+1], HIGH);
+    int numleds = 7 * ((i - 6500) / (9500.0 - 6500.0));
+    // Serial.println(numleds);
+    for (int j = 0; j < 7; j++) {
+      digitalWrite(ALL_LEDS[j*2], (j <= numleds) ? HIGH : LOW);
+      digitalWrite(ALL_LEDS[(j*2)+1], (j <= numleds) ? HIGH : LOW);
     }
    
   } 

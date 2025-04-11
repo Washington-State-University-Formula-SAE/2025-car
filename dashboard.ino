@@ -8,9 +8,8 @@
 #include "Display.h"
 
 // SETTINGS =============================================================================================================================================================
-bool is_dashboard = false;
+bool is_dashboard = true;
 const int WRITE_FREQ = 10; // ms
-const int CHECK_ENGINE = 27;
 const int DATA_SWITCH = 28;
 const int STATUS_A = 12;
 const int STATUS_B = 11;
@@ -38,18 +37,23 @@ int mode = 0;
 int mode_bounces = 0;
 bool offset;
 
-void openfile() {
-  int i = 0;
-    while (SD.exists((String(i) + ".txt").c_str())) {
-      i++;
-    }
-    file = SD.open((String(i) + ".txt").c_str(), FILE_WRITE);
+int TEST = 0;
+
+void openfile(String filename) {
+  // int i = 0;
+  //   while (SD.exists((String(i) + ".txt").c_str())) {
+  //     i++;
+    // }
+    // file = SD.open((String(i) + ".txt").c_str(), FILE_WRITE);
+  file = SD.open(filename.c_str(), FILE_WRITE);
 }
 
 // MAIN INTERRUPT =======================================================================================================================================================
 void handler(const CAN_message_t &msg) {
   offset = !offset;
-  digitalWrite(STATUS_D, offset ? HIGH : LOW);
+  if (!is_dashboard) {
+    digitalWrite(STATUS_D, offset ? HIGH : LOW);
+  }
   //  Serial.println("message");
    // log directly wired sensors:
    if (!is_dashboard) {
@@ -85,25 +89,6 @@ void handler(const CAN_message_t &msg) {
     // Serial.println(ecu.data.rpm);
 
   if (ecu.decode(msg)) {
-      // read ecu data
-     // =============
-    //  if (is_dashboard) {
-    //   int a = floor((ecu.data.tps / 75.0) * 14);
-    //   for (int j = 0; j < a; j++) {  
-    //     digitalWrite(ALL_LEDS[j], HIGH);
-    //     Serial.print(j);
-    //     Serial.print(" ");
-    //   }
-    //   Serial.print("^");
-    //   for (int j = a; j < 14; j++) {  
-    //     digitalWrite(ALL_LEDS[j], LOW);
-    //     Serial.print(j);
-    //     Serial.print(" ");
-    //   }
-    //   Serial.println();
-    //   //  set_rpm((9500)*(ecu.data.tps / 75.0));
-    //  }
-     set_rpm(ecu.data.rpm);
      tosend.rpm = ecu.data.rpm;
      tosend.time = ecu.data.seconds;
      tosend.afr = ecu.data.AFR1;
@@ -116,6 +101,9 @@ void handler(const CAN_message_t &msg) {
      tosend.batt = ecu.data.batt;
      tosend.oil_press = ecu.data.sensors1;
      tosend.syncloss_count = ecu.data.synccnt;
+     TEST += ecu.data.synccnt;
+     Serial.print("Sync loss total:\t");
+     Serial.println(TEST);
      tosend.syncloss_code = ecu.data.syncreason;
      tosend.ltcl_timing = ecu.data.launch_timing;
      tosend.ve1 = ecu.data.ve1;
@@ -129,26 +117,42 @@ void handler(const CAN_message_t &msg) {
     bool engine_bad = (ecu.data.clt > 215) || (ecu.data.sensors1 < 5) || (ecu.data.sensors1 > 125) || (ecu.data.batt > 15) || (ecu.data.batt < 7);
     bool engine_really_bad = (ecu.data.clt > 230) || (ecu.data.sensors1 > 150) || (ecu.data.sensors1 < 1);
 
-    if (engine_really_bad) {
-      digitalWrite(CHECK_ENGINE, evenodd);
-    } else {
-      digitalWrite(CHECK_ENGINE, engine_bad);
+    if (carIsOn()) {
+      if (engine_really_bad) {
+        digitalWrite(CHECK_ENGINE, evenodd);
+      } else {
+        digitalWrite(CHECK_ENGINE, engine_bad);
+      }
     }
     // show displays
-    Serial.print(ecu.data.syncreason);
-    Serial.print(", ");
-    Serial.println(ecu.data.synccnt);
+    // Serial.print(ecu.data.syncreason);
+    // Serial.print(", ");
+    // Serial.println(ecu.data.synccnt);
  
-  } else if (msg.id == 935444) {
+  } else if (msg.id == (935424 +20)) {
+    // Serial.println("AnalogX 1");
     double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
     double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
     double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
     double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
-    // Serial.print(a);Serial.print("\t");
-    // Serial.print(b);Serial.print("\t");
-    // Serial.print(c);Serial.print("\t");
-    // Serial.print(d);Serial.print("\t batt: ");
-    // Serial.println(ecu.data.batt);
+  } else if (msg.id == (935680 +20)) {
+    Serial.println("AnalogX 2");
+    double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
+    double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
+    double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
+    double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
+  } else if (msg.id == (935936 +20)) {
+    Serial.println("AnalogX 3");
+    double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
+    double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
+    double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
+    double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
+  } else if (msg.id == (936192 +20)) {
+    Serial.println("AnalogX 4");
+    double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
+    double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
+    double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
+    double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
   }
   // write to SD card if time in time
   if (digitalRead(DATA_SWITCH)) {
@@ -162,14 +166,14 @@ void handler(const CAN_message_t &msg) {
     }
   }
 
-  String MODE_NAMES[] = {"1    OFF", "2   SHOW", "3   NORM", "4    RPM", "5   COOL", "6    OIL", "7   BRAK"};
+  String MODE_NAMES[] = {"1    OFF", "GO COUGS", "3   NORN", "4    RPN", "5   CLNt", "6   OIL ", "7   BRAC"};
 
   if (is_dashboard) {
     int newmode = selector.get();
-    Serial.print("newmode: ");
-    Serial.print(newmode);
-    Serial.print(", ");
-    Serial.println(mode_bounces);
+    // Serial.print("newmode: ");
+    // Serial.print(newmode);
+    // Serial.print(", ");
+    // Serial.println(mode_bounces);
     if (newmode != mode) {
       mode_bounces++;
       if (mode_bounces > 70) {
@@ -184,31 +188,36 @@ void handler(const CAN_message_t &msg) {
     switch (mode) {
       case 0:
         // off
+        off(matrix1, matrix2);
         break;
       case 1:
         // standby
         displayText("GO COUGS", matrix1, matrix2);
-        lightSequence();
+        lightSequence(); // non blocking
         break;
       case 2:
         // standard running
-        displayText("std mode", matrix1, matrix2);
+        if (!displaying(ecu, matrix1, matrix2)) {set_rpm(ecu.data.rpm);}
         break;
       case 3:
         // rpm only
         displayInt(ecu.data.rpm, matrix1, matrix2);
+        set_rpm(ecu.data.rpm);
         break;
       case 4:
         // coolant temp
         displayInt(ecu.data.clt, matrix1, matrix2);
+        set_rpm(ecu.data.rpm);
         break;
       case 5:
         // oil pressure
         displayInt(ecu.data.sensors1, matrix1, matrix2);
+        set_rpm(ecu.data.rpm);
         break;
       case 6:
         // brake pressure
         displayText("--------", matrix1, matrix2);
+        set_rpm(ecu.data.rpm);
         break;
       default:
         break;
@@ -230,6 +239,7 @@ void setup() {
     }
     pinMode(CHECK_ENGINE, OUTPUT);
     selector.initialize();
+    startsequence(matrix1, matrix2);
   } else {
     pinMode(STATUS_A, OUTPUT);
     digitalWrite(STATUS_A, LOW);
@@ -262,10 +272,10 @@ void setup() {
     digitalWrite(STATUS_B, HIGH);
 
     myGNSS.checkUblox();
+    // file = SD.open("x", FILE_WRITE);
     String filename = String(myGNSS.getYear()) + "-" + String(myGNSS.getMonth()) + "-" + String(myGNSS.getDay()) +\
-                    "-" + String(myGNSS.getHour()) + ":" + String(myGNSS.getMinute()) + ":" + String(myGNSS.getSecond() + ".bin");
-    // file = SD.open(filename.c_str(), FILE_WRITE);
-    openfile();
+                    "-" + String(myGNSS.getHour()) + ":" + String(myGNSS.getMinute()) + ":" + String(myGNSS.getSecond()) + ".bin";
+    openfile(filename);
     // file.write((byte*) &tosend, sizeof(tosend));
     // file.write("hello\n", 6);
     file.flush();

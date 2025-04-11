@@ -9,6 +9,11 @@
 #include <cmath>
 // const int ALL_LEDS[] =  {0,1,2,3,4,5,  8,9,10,11,7,6};
 const int ALL_LEDS[14] = {7, 4, 8, 5, 9, 6, 10, 2, 11, 3, 12, 0, 26, 1};
+const int CHECK_ENGINE = 27;
+
+void startsequence(Adafruit_7segment matrix1, Adafruit_7segment matrix2);
+
+void off(Adafruit_7segment matrix1, Adafruit_7segment matrix2);
 
 void lightSequence(void);
 
@@ -25,8 +30,10 @@ void displayClt(int coolant, Adafruit_7segment matrix1, Adafruit_7segment matrix
 
 void displayOilPres(int oilPressure, Adafruit_7segment matrix1, Adafruit_7segment matrix2);
 
-int displaying(MegaSquirt3 ecu, Adafruit_7segment matrix1, Adafruit_7segment matrix2, int re);
+bool displaying(MegaSquirt3 ecu, Adafruit_7segment matrix1, Adafruit_7segment matrix2);
 
 void set_rpm(int i);
+
+bool carIsOn();
 
 #endif
