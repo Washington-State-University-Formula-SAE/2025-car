@@ -8,7 +8,7 @@
 #include "Display.h"
 
 // SETTINGS =============================================================================================================================================================
-bool is_dashboard = true;
+bool is_dashboard = false;
 const int WRITE_FREQ = 10; // ms
 const int DATA_SWITCH = 28;
 const int STATUS_A = 12;
@@ -40,16 +40,29 @@ bool offset;
 int TEST = 0;
 
 void openfile(String filename) {
-  // int i = 0;
-  //   while (SD.exists((String(i) + ".txt").c_str())) {
-  //     i++;
-    // }
-    // file = SD.open((String(i) + ".txt").c_str(), FILE_WRITE);
-  file = SD.open(filename.c_str(), FILE_WRITE);
+  // Serial.println(filename);
+  int i = 0;
+    while (SD.exists((String(i) + ".bin").c_str())) {
+      i++;
+    }
+    file = SD.open((String(i) + ".bin").c_str(), FILE_WRITE);
+  // file = SD.open(filename.c_str(), FILE_WRITE);
 }
 
 // MAIN INTERRUPT =======================================================================================================================================================
+bool is_logging = true;
+int is_logging_bounce = 0;
 void handler(const CAN_message_t &msg) {
+  Serial.println("HLELOE");
+  Serial.println(digitalRead(DATA_SWITCH));
+  if ((digitalRead(DATA_SWITCH)==HIGH) != is_logging) {
+    Serial.println(is_logging_bounce);
+    if (is_logging_bounce++ > 40) {
+      is_logging = !is_logging;
+      if (is_logging) openfile("new");
+      is_logging_bounce = 0;
+    }
+  }
   offset = !offset;
   if (!is_dashboard) {
     digitalWrite(STATUS_D, offset ? HIGH : LOW);
@@ -102,8 +115,8 @@ void handler(const CAN_message_t &msg) {
      tosend.oil_press = ecu.data.sensors1;
      tosend.syncloss_count = ecu.data.synccnt;
      TEST += ecu.data.synccnt;
-     Serial.print("Sync loss total:\t");
-     Serial.println(TEST);
+    //  Serial.print("Sync loss total:\t");
+    //  Serial.println(TEST);
      tosend.syncloss_code = ecu.data.syncreason;
      tosend.ltcl_timing = ecu.data.launch_timing;
      tosend.ve1 = ecu.data.ve1;
@@ -155,7 +168,7 @@ void handler(const CAN_message_t &msg) {
     double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
   }
   // write to SD card if time in time
-  if (digitalRead(DATA_SWITCH)) {
+  if (is_logging) {
     if (!is_dashboard && millis() > lastwrite + WRITE_FREQ) {
       tosend.write_millis = millis();
       file.write((byte*) &tosend, sizeof(tosend));
@@ -197,7 +210,10 @@ void handler(const CAN_message_t &msg) {
         break;
       case 2:
         // standard running
-        if (!displaying(ecu, matrix1, matrix2)) {set_rpm(ecu.data.rpm);}
+        if (!carIsOn() || !displaying(ecu, matrix1, matrix2)) {
+          set_rpm(ecu.data.rpm);
+          displayInt(ecu.data.rpm, matrix1, matrix2);
+        }
         break;
       case 3:
         // rpm only
@@ -233,7 +249,7 @@ void setup() {
 
   if (is_dashboard) {
 
-    pinMode(DATA_SWITCH, INPUT);
+    pinMode(DATA_SWITCH, INPUT_PULLDOWN);
     for (int i = 0; i < 14; i++) {
       pinMode(ALL_LEDS[i], OUTPUT);
     }
@@ -267,7 +283,7 @@ void setup() {
     Wire2.begin();
     if (myGNSS.begin(Wire2) == false) { //Connect to the u-blox module using Wire port {
       Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
-      while (1);
+      // while (1);
     }
     digitalWrite(STATUS_B, HIGH);
 

@@ -167,7 +167,7 @@ bool displaying(MegaSquirt3 ecu, Adafruit_7segment matrix1, Adafruit_7segment ma
     else { error_time = 0; error_bounces = 0;}
     return true;
   }
-  else if (oilPressure  > 80 || oilPressure < -1 || true) {
+  else if (oilPressure  > 80 || oilPressure < -1) {
     if (error_bounces++ < ERROR_DEBOUNCE_MIN) {return false;}
     // here we def have error after min # of bounces
     if (error_time == 0) {error_time = millis();}
