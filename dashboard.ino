@@ -8,7 +8,7 @@
 #include "Display.h"
 
 // SETTINGS =============================================================================================================================================================
-bool is_dashboard = false;
+bool is_dashboard = true;
 const int WRITE_FREQ = 10; // ms
 const int DATA_SWITCH = 28;
 const int STATUS_A = 12;
@@ -53,10 +53,12 @@ void openfile(String filename) {
 bool is_logging = true;
 int is_logging_bounce = 0;
 void handler(const CAN_message_t &msg) {
-  Serial.println("HLELOE");
-  Serial.println(digitalRead(DATA_SWITCH));
+ 
+  // Serial.print("data switch: ");
+  // Serial.println(digitalRead(DATA_SWITCH));
+
   if ((digitalRead(DATA_SWITCH)==HIGH) != is_logging) {
-    Serial.println(is_logging_bounce);
+    // Serial.println(is_logging_bounce);
     if (is_logging_bounce++ > 40) {
       is_logging = !is_logging;
       if (is_logging) openfile("new");
@@ -72,28 +74,29 @@ void handler(const CAN_message_t &msg) {
    if (!is_dashboard) {
      // log accelerometer
      accel.readSensor();
-     tosend.ax = accel.getAccelX_mss() * 100;
-     tosend.ay = accel.getAccelY_mss() * 100;
-     tosend.az = accel.getAccelZ_mss() * 100;
+     tosend.ax = accel.getAccelX_mss() * 1000;
+     tosend.ay = accel.getAccelY_mss() * 1000;
+     tosend.az = accel.getAccelZ_mss() * 1000;
      tosend.accel_millis = millis();
  
-     // log gyro
+    //  // log gyro
      gyro.readSensor();
-     tosend.imu_x = gyro.getGyroX_rads() * 100;
-     tosend.imu_y = gyro.getGyroY_rads() * 100;
-     tosend.imu_z = gyro.getGyroZ_rads() * 100;
+     tosend.imu_x = gyro.getGyroX_rads() * 1000;
+     tosend.imu_y = gyro.getGyroY_rads() * 1000;
+     tosend.imu_z = gyro.getGyroZ_rads() * 1000;
      tosend.imu_millis = millis();
  
      // log GPS
-     myGNSS.checkUblox();
-     tosend.hour = myGNSS.getHour();
-     tosend.minute = myGNSS.getMinute();
-     tosend.second = myGNSS.getSecond();
-     tosend.lat = myGNSS.getLatitude();
-     tosend.lon = myGNSS.getLongitude();
-     tosend.elev = myGNSS.getAltitude();
-     tosend.ground_speed = myGNSS.getGroundSpeed();	
-     tosend.gps_millis = millis();
+      Serial.print("+");
+     if (myGNSS.getPVT(10)) {
+      Serial.print("-");tosend.unixtime = myGNSS.getUnixEpoch();
+      Serial.print("-");tosend.lat = myGNSS.getLatitude();
+      Serial.print("-");tosend.lon = myGNSS.getLongitude();
+      Serial.print("-");tosend.elev = myGNSS.getAltitude();
+      Serial.print("-");tosend.ground_speed = myGNSS.getGroundSpeed();	
+      Serial.print("-");tosend.gps_millis = millis();
+     }
+     Serial.print("done\n");
    }
 
     // ecu.data.rpm = 90;
@@ -104,26 +107,27 @@ void handler(const CAN_message_t &msg) {
   if (ecu.decode(msg)) {
      tosend.rpm = ecu.data.rpm;
      tosend.time = ecu.data.seconds;
-     tosend.afr = ecu.data.AFR1;
-     tosend.spark_advance = ecu.data.adv_deg;
-     tosend.baro = ecu.data.baro;
-     tosend.map = ecu.data.map;
-     tosend.mat = ecu.data.mat;
-     tosend.clnt_temp = ecu.data.clt;
-     tosend.tps = ecu.data.tps;
-     tosend.batt = ecu.data.batt;
-     tosend.oil_press = ecu.data.sensors1;
+     tosend.afr = ecu.data.AFR1 * 1000;
+     tosend.fuelload = ecu.data.fuelload * 1000;
+     tosend.spark_advance = ecu.data.adv_deg * 1000;
+     tosend.baro = ecu.data.baro * 1000;
+     tosend.map = ecu.data.map * 1000;
+     tosend.mat = ecu.data.mat * 1000;
+     tosend.clnt_temp = ecu.data.clt * 1000;
+     tosend.tps = ecu.data.tps * 1000;
+     tosend.batt = ecu.data.batt * 1000;
+     tosend.oil_press = ecu.data.sensors1 * 1000;
      tosend.syncloss_count = ecu.data.synccnt;
      TEST += ecu.data.synccnt;
     //  Serial.print("Sync loss total:\t");
     //  Serial.println(TEST);
      tosend.syncloss_code = ecu.data.syncreason;
-     tosend.ltcl_timing = ecu.data.launch_timing;
-     tosend.ve1 = ecu.data.ve1;
-     tosend.ve2 = ecu.data.ve2;
-     tosend.egt = ecu.data.egt1;
-     tosend.maf = ecu.data.MAF;
-     tosend.in_temp = ecu.data.airtemp;
+     tosend.ltcl_timing = ecu.data.launch_timing * 1000;
+     tosend.ve1 = ecu.data.ve1 * 1000;
+     tosend.ve2 = ecu.data.ve2 * 1000;
+     tosend.egt = ecu.data.egt1 * 1000;
+     tosend.maf = ecu.data.MAF * 1000;
+     tosend.in_temp = ecu.data.airtemp * 1000;
      tosend.ecu_millis = millis();
     // check engine
     bool evenodd = ((int)floor(millis()/150)) % 2;
@@ -143,30 +147,59 @@ void handler(const CAN_message_t &msg) {
     // Serial.println(ecu.data.synccnt);
  
   } else if (msg.id == (935424 +20)) {
-    // Serial.println("AnalogX 1");
-    double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
-    double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
-    double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
-    double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
+    // Serial.print("AnalogX 1\n");
+    int a = ((msg.buf[0]) + (msg.buf[1]<<8));
+    int b = ((msg.buf[2]) + (msg.buf[3]<<8));
+    int c = ((msg.buf[4]) + (msg.buf[5]<<8));
+    int d = ((msg.buf[6]) + (msg.buf[7]<<8));
+    // Serial.print(a);Serial.print(" ");
+    // Serial.print(b);Serial.print(" ");
+    // Serial.print(c);Serial.print(" ");
+    // Serial.print(d);Serial.print("\n");
+    tosend.brake1 = a;
+    tosend.brake2 = b;
+    tosend.susp_pot_1 = c;
+    tosend.susp_pot_2 = d;
+    tosend.analogx1_millis = millis();
   } else if (msg.id == (935680 +20)) {
-    Serial.println("AnalogX 2");
-    double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
-    double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
-    double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
-    double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
+    // Serial.print("AnalogX 2\t");
+    int a = ((msg.buf[0]) + (msg.buf[1]<<8));
+    int b = ((msg.buf[2]) + (msg.buf[3]<<8));
+    int c = ((msg.buf[4]) + (msg.buf[5]<<8));
+    int d = ((msg.buf[6]) + (msg.buf[7]<<8));
+    tosend.analogx2_millis = millis();
+    // Serial.print(a);Serial.print(" ");
+    // Serial.print(b);Serial.print(" ");
+    // Serial.print(c);Serial.print(" ");
+    // Serial.print(d);Serial.print("\n");
+    tosend.susp_pot_4 = c;
+    tosend.rad_in = b;
+    tosend.rad_out = a;
   } else if (msg.id == (935936 +20)) {
-    Serial.println("AnalogX 3");
-    double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
-    double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
-    double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
-    double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
-  } else if (msg.id == (936192 +20)) {
-    Serial.println("AnalogX 4");
-    double a = ((msg.buf[0]) + (msg.buf[1]<<8))/5024.0;
-    double b = ((msg.buf[2]) + (msg.buf[3]<<8))/5024.0;
-    double c = ((msg.buf[4]) + (msg.buf[5]<<8))/5024.0;
-    double d = ((msg.buf[6]) + (msg.buf[7]<<8))/5024.0;
+    // Serial.print("AnalogX 3\t");
+    int a = ((msg.buf[0]) + (msg.buf[1]<<8));
+    int b = ((msg.buf[2]) + (msg.buf[3]<<8));
+    int c = ((msg.buf[4]) + (msg.buf[5]<<8));
+    int d = ((msg.buf[6]) + (msg.buf[7]<<8));
+    tosend.analogx3_millis = millis();
+    // Serial.print(a);Serial.print(" ");
+    // Serial.print(b);Serial.print(" ");
+    // Serial.print(c);Serial.print(" ");
+    // Serial.print(d);Serial.print("\n")
+    tosend.susp_pot_3 = b;
   }
+  // else if (msg.id == (936192 +20)) {
+  //   // Serial.print("AnalogX 4\t");
+  //   int a = ((msg.buf[0]) + (msg.buf[1]<<8));
+  //   int b = ((msg.buf[2]) + (msg.buf[3]<<8));
+  //   int c = ((msg.buf[4]) + (msg.buf[5]<<8));
+  //   int d = ((msg.buf[6]) + (msg.buf[7]<<8));
+  //   // Serial.print(a);Serial.print(" ");
+  //   // Serial.print(b);Serial.print(" ");
+  //   // Serial.print(c);Serial.print(" ");
+  //   // Serial.print(d);Serial.print("\n");
+    
+  // }
   // write to SD card if time in time
   if (is_logging) {
     if (!is_dashboard && millis() > lastwrite + WRITE_FREQ) {
@@ -174,7 +207,8 @@ void handler(const CAN_message_t &msg) {
       file.write((byte*) &tosend, sizeof(tosend));
       // file.write("END\n");
       file.flush();
-      Serial.println("WROTE ##############################################################");
+      // Serial.print("WROTE ############################################################## ");
+      Serial.println(millis());
       lastwrite = millis();
     }
   }
@@ -186,7 +220,7 @@ void handler(const CAN_message_t &msg) {
     // Serial.print("newmode: ");
     // Serial.print(newmode);
     // Serial.print(", ");
-    // Serial.println(mode_bounces);
+    // Serial.println(millis());
     if (newmode != mode) {
       mode_bounces++;
       if (mode_bounces > 70) {
@@ -232,7 +266,14 @@ void handler(const CAN_message_t &msg) {
         break;
       case 6:
         // brake pressure
-        displayText("--------", matrix1, matrix2);
+        // matrix1.printNumber(5000*((tosend.brake1-0.1)/0.8));
+        // matrix2.printNumber(5000*((tosend.brake2-0.1)/0.8));
+        // matrix1.writeDisplay();
+        if (((int)floor(millis()/150)) % 2) {
+          brakepressure(tosend.brake1, tosend.brake2, matrix1, matrix2);
+        }
+        // Serial.println(5000*((tosend.brake2-0.1)/0.8));
+        // matrix2.writeDisplay();
         set_rpm(ecu.data.rpm);
         break;
       default:
@@ -283,7 +324,7 @@ void setup() {
     Wire2.begin();
     if (myGNSS.begin(Wire2) == false) { //Connect to the u-blox module using Wire port {
       Serial.println(F("u-blox GNSS not detected at default I2C address. Please check wiring. Freezing."));
-      // while (1);
+      while (1);
     }
     digitalWrite(STATUS_B, HIGH);
 
@@ -309,6 +350,7 @@ void setup() {
   Can.onReceive(handler); //when a CAN message is received, runs the canMShandler function
 }
 void loop(){
+  // Serial.println(millis());
   if (!is_dashboard) {
     digitalWrite(STATUS_A, HIGH);
     digitalWrite(STATUS_B, HIGH);

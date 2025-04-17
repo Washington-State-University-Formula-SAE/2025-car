@@ -104,7 +104,7 @@ void displayInt(int value, Adafruit_7segment matrix1, Adafruit_7segment matrix2)
 
     display1 = value / pow(10, split);
     
-    hold = value - (display1 * pow(10, split));
+    hold = abs(value - (display1 * pow(10, split)));
     sprintf(temp1, "%d", hold);
     temp2 = temp1;
 
@@ -221,4 +221,19 @@ void set_rpm(int i) {
       digitalWrite(ALL_LEDS[j], evenodd ? HIGH : LOW);
     }
   }
+}
+
+void brakepressure(int b1, int b2, Adafruit_7segment matrix1, Adafruit_7segment matrix2) {
+  int a = floor(max(0, 5000*(((b1/5024.0)-0.1)/0.8)));
+  int b = floor(max(0, 5000*(((b2/5024.0)-0.1)/0.8)));
+
+  char* c1 = "";
+  char* c2 = "";
+  sprintf(c1, "%03d ", a);
+  sprintf(c2, " %03d", b);
+
+  String s1 = String(c1);
+  String s2 = String(c2);
+
+  displayText(s1 + s2, matrix1, matrix2);
 }

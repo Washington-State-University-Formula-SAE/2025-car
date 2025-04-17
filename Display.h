@@ -11,6 +11,9 @@
 const int ALL_LEDS[14] = {7, 4, 8, 5, 9, 6, 10, 2, 11, 3, 12, 0, 26, 1};
 const int CHECK_ENGINE = 27;
 
+
+void brakepressure(int b1, int b2, Adafruit_7segment matrix1, Adafruit_7segment matrix2);
+
 void startsequence(Adafruit_7segment matrix1, Adafruit_7segment matrix2);
 
 void off(Adafruit_7segment matrix1, Adafruit_7segment matrix2);
