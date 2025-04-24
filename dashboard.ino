@@ -213,7 +213,7 @@ void handler(const CAN_message_t &msg) {
     }
   }
 
-  String MODE_NAMES[] = {"1    OFF", "GO COUGS", "3   NORN", "4    RPN", "5   CLNt", "6   OIL ", "7   BRAC"};
+  String MODE_NAMES[] = {"GO COUGS", "2    MPH", "3   NORN", "4    RPN", "5   CLNt", "6   OIL ", "7   BRAC"};
 
   if (is_dashboard) {
     int newmode = selector.get();
@@ -233,14 +233,19 @@ void handler(const CAN_message_t &msg) {
 
 
     switch (mode) {
+      // case 0:
+      //   // off
+      //   off(matrix1, matrix2);
+      //   break;
       case 0:
-        // off
-        off(matrix1, matrix2);
-        break;
-      case 1:
         // standby
         displayText("GO COUGS", matrix1, matrix2);
         lightSequence(); // non blocking
+        break;
+      case 1:
+        // mph
+        displayInt(round(tosend.ground_speed/ 447.04), matrix1, matrix2);
+        set_rpm(ecu.data.rpm);
         break;
       case 2:
         // standard running
